@@ -16,8 +16,9 @@ int main(int argc, char **argv)
 	char *name;
 	int fd;
 	struct spi_ioc_transfer xfer[2];
-	unsigned char buf[32], *bp;
+	unsigned char inbuf[32], outbuf[32], *bp;
 	int len, status;
+	unsigned int speed_hz = 2000000;
 
 	name = argv[1];
 	fd = open(name, O_RDWR);
@@ -27,19 +28,25 @@ int main(int argc, char **argv)
 	}
 
 	memset(xfer, 0, sizeof xfer);
-	memset(buf, 0, sizeof buf);
-	len = sizeof buf;
+	memset(inbuf, 0, sizeof inbuf);
+	memset(outbuf, 0, sizeof outbuf);
 
 	/*
 	 * Send a GetID command
 	 */
-	buf[0] = 0x9f;
-	len = 6;
-	xfer[0].tx_buf = (unsigned long)buf;
+	inbuf[0] = 0x9f;
+	xfer[0].tx_buf = (unsigned long)inbuf;
 	xfer[0].len = 1;
 
-	xfer[1].rx_buf = (unsigned long) buf;
+	xfer[1].rx_buf = (unsigned long) outbuf;
 	xfer[1].len = 6;
+	len = 6;
+
+	status = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed_hz);
+	if (status < 0) {
+		perror("SPI_IOC_WR_MAX_SPEED_HZ");
+		return -1;
+	}
 
 	status = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
 	if (status < 0) {
@@ -48,7 +55,7 @@ int main(int argc, char **argv)
 	}
 
 	printf("response(%d): ", status);
-	for (bp = buf; len; len--)
+	for (bp = outbuf; len; len--)
 		printf("%02x ", *bp++);
 	printf("\n");
 
